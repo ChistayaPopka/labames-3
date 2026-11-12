@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block title %}{% if object %}Редактирование{% else %}Новое объявление{% endif %}{% endblock %}
+
+{% block content %}
+<div class="narrow">
+  <h1>{% if object %}Редактирование объявления{% else %}Новое объявление{% endif %}</h1>
+  <form method="post" enctype="multipart/form-data" class="panel">
+    {% csrf_token %}
+    {% include "_form.html" with form=form %}
+    <div class="actions">
+      <button class="btn btn-primary" type="submit">{% if object %}Сохранить{% else %}Опубликовать{% endif %}</button>
+      <a class="btn" href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'ads:list' %}{% endif %}">Отмена</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

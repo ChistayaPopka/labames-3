@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Избранное{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Избранное</h1>
+</div>
+
+{% if ads %}
+  <div class="grid">
+    {% for ad in ads %}
+      {% include "ads/_ad_card.html" %}
+    {% endfor %}
+  </div>
+  {% include "ads/_pagination.html" %}
+{% else %}
+  <div class="empty">
+    <p>В избранном пока пусто. Нажмите ☆ на карточке объявления, чтобы сохранить его.</p>
+    <a class="btn" href="{% url 'ads:list' %}">К объявлениям</a>
+  </div>
+{% endif %}
+{% endblock %}

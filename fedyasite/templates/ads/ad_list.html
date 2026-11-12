@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Все объявления{% endblock %}
+
+{% block content %}
+<div class="layout">
+  <aside class="sidebar">
+    <form method="get" class="filter-form">
+      <h2>Фильтры</h2>
+      {% include "_form.html" with form=filter_form %}
+      <button class="btn btn-primary btn-block" type="submit">Показать</button>
+      {% if querystring %}
+        <a class="btn btn-block" href="{% url 'ads:list' %}">Сбросить</a>
+      {% endif %}
+    </form>
+  </aside>
+
+  <section class="content">
+    <div class="page-head">
+      <h1>Объявления</h1>
+      <span class="muted">Найдено: {{ paginator.count }}</span>
+    </div>
+
+    {% if ads %}
+      <div class="grid">
+        {% for ad in ads %}
+          {% include "ads/_ad_card.html" %}
+        {% endfor %}
+      </div>
+      {% include "ads/_pagination.html" %}
+    {% else %}
+      <div class="empty">
+        <p>По вашему запросу ничего не нашлось.</p>
+        <a class="btn" href="{% url 'ads:list' %}">Показать все объявления</a>
+      </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

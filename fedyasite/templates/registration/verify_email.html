@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Подтверждение почты{% endblock %}
+
+{% block content %}
+<div class="narrow narrow-sm">
+  <h1>Подтвердите почту</h1>
+  <form method="post" class="panel">
+    {% csrf_token %}
+    <p>Мы отправили 6-значный код на <strong>{{ email }}</strong>. Код действует {{ ttl_minutes }} минут.</p>
+    {% include "_form.html" with form=form %}
+    <button class="btn btn-primary btn-block" type="submit">Подтвердить</button>
+  </form>
+
+  <form method="post" action="{% url 'resend_code' %}" class="resend">
+    {% csrf_token %}
+    <span class="muted">Письмо не пришло? Проверьте папку «Спам» или</span>
+    <button class="link-button link-accent" type="submit">отправьте код ещё раз</button>
+    {% if resend_wait %}<span class="muted">(доступно через {{ resend_wait }} с)</span>{% endif %}
+  </form>
+  <p class="muted">Ошиблись в адресе? <a href="{% url 'signup' %}">Зарегистрируйтесь заново</a></p>
+</div>
+{% endblock %}

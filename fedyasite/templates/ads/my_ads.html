@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Мои объявления{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Мои объявления</h1>
+  <a class="btn btn-primary" href="{% url 'ads:create' %}">+ Разместить</a>
+</div>
+
+{% if ads %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Объявление</th><th>Категория</th><th>Цена</th>
+          <th>Просмотры</th><th>Статус</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ad in ads %}
+          <tr>
+            <td><a href="{{ ad.get_absolute_url }}">{{ ad.title }}</a></td>
+            <td>{{ ad.category.name }}</td>
+            <td class="nowrap">{{ ad.price|floatformat:"0g" }} ₽</td>
+            <td>{{ ad.views }}</td>
+            <td>
+              {% if ad.is_active %}<span class="tag tag-ok">Активно</span>
+              {% else %}<span class="tag">Снято</span>{% endif %}
+            </td>
+            <td class="nowrap">
+              <a href="{% url 'ads:update' ad.pk %}">Изменить</a> ·
+              <a class="danger" href="{% url 'ads:delete' ad.pk %}">Удалить</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "ads/_pagination.html" %}
+{% else %}
+  <div class="empty">
+    <p>У вас пока нет объявлений.</p>
+    <a class="btn btn-primary" href="{% url 'ads:create' %}">Разместить первое</a>
+  </div>
+{% endif %}
+{% endblock %}
