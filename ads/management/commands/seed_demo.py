@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 
 from ads.models import Ad, Category
+from wallet.models import Transaction
+from wallet.services import top_up
 
 CATEGORIES = [
     ('Электроника', 'electronics'),
@@ -65,6 +67,9 @@ class Command(BaseCommand):
                 user.set_password('demo12345')
                 user.save()
             users.append(user)
+            # Стартовый тестовый баланс — только один раз, при первом запуске
+            if not Transaction.objects.filter(wallet__user=user).exists():
+                top_up(user, 50_000, comment='Стартовый баланс демо-пользователя')
 
         created_count = 0
         for i, (slug, title, price, condition, city, description) in enumerate(ADS):
@@ -84,5 +89,5 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             f'Готово: категорий — {len(categories)}, новых объявлений — {created_count}. '
-            'Демо-пользователи: anna / ivan, пароль demo12345'
+            'Демо-пользователи: anna / ivan, пароль demo12345, тестовый баланс 50 000 ₽'
         ))

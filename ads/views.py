@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import F, Q
+from django.db.models import Exists, F, OuterRef, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -8,6 +8,9 @@ from django.views import View
 from django.views.generic import (
     CreateView, DeleteView, DetailView, ListView, UpdateView,
 )
+
+from wallet import services as wallet_services
+from wallet.models import Order, Wallet
 
 from .forms import AdFilterForm, AdForm
 from .models import Ad
@@ -21,7 +24,12 @@ class AdListView(ListView):
 
     def get_queryset(self):
         self.filter_form = AdFilterForm(self.request.GET or None)
-        queryset = Ad.objects.filter(is_active=True).select_related('category', 'author')
+        # Забронированные объявления остаются в ленте, но карточка показывается приглушённой
+        queryset = (
+            Ad.objects.filter(is_active=True)
+            .annotate(is_reserved=wallet_services.ad_is_reserved())
+            .select_related('category', 'author')
+        )
         if self.filter_form.is_bound:
             queryset = self.filter_form.filter(queryset)
         return queryset
@@ -69,9 +77,27 @@ class AdDetailView(DetailView):
         context['is_favorite'] = self.object.pk in context['favorite_ids']
         context['similar_ads'] = (
             Ad.objects.filter(is_active=True, category=self.object.category)
+            .annotate(is_reserved=wallet_services.ad_is_reserved())
             .exclude(pk=self.object.pk)
             .select_related('category')[:3]
         )
+
+        # Бронь: сначала закрываем просроченную, если есть, потом ищем активную
+        wallet_services.expire_overdue(Order.objects.filter(ad=self.object))
+        context['active_order'] = (
+            wallet_services.active_reservations()
+            .filter(ad=self.object).select_related('buyer').first()
+        )
+        context['reservation_hours'] = wallet_services.RESERVATION_HOURS
+        if user.is_authenticated:
+            if self.object.author_id == user.pk:
+                context['conversations_count'] = self.object.conversations.count()
+            else:
+                context['conversation'] = self.object.conversations.filter(buyer=user).first()
+            balance = (
+                Wallet.objects.filter(user=user).values_list('balance', flat=True).first() or 0
+            )
+            context['missing_amount'] = max(self.object.price - balance, 0)
         return context
 
 
@@ -113,6 +139,12 @@ class AdDeleteView(AuthorRequiredMixin, DeleteView):
     success_url = reverse_lazy('ads:my')
 
     def form_valid(self, form):
+        if wallet_services.active_reservations().filter(ad=self.object).exists():
+            messages.error(
+                self.request,
+                'Объявление забронировано — его нельзя удалить. Сначала отмените бронь в разделе «Заказы».',
+            )
+            return redirect(self.object)
         messages.success(self.request, 'Объявление удалено.')
         return super().form_valid(form)
 
@@ -123,7 +155,10 @@ class MyAdsView(LoginRequiredMixin, ListView):
     paginate_by = 10
 
     def get_queryset(self):
-        return self.request.user.ads.select_related('category')
+        return self.request.user.ads.select_related('category').annotate(
+            is_reserved=wallet_services.ad_is_reserved(),
+            is_sold=Exists(Order.objects.filter(ad=OuterRef('pk'), status=Order.Status.COMPLETED)),
+        )
 
 
 class FavoriteListView(LoginRequiredMixin, ListView):
@@ -134,6 +169,7 @@ class FavoriteListView(LoginRequiredMixin, ListView):
     def get_queryset(self):
         return (
             self.request.user.favorite_ads.filter(is_active=True)
+            .annotate(is_reserved=wallet_services.ad_is_reserved())
             .select_related('category', 'author')
         )
 

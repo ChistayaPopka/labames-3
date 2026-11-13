@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Заказы{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Заказы</h1>
+  <a href="{% url 'wallet:wallet' %}">Кошелёк →</a>
+</div>
+
+<nav class="tabs">
+  <a class="{% if tab == 'purchases' %}active{% endif %}" href="?tab=purchases">Покупки</a>
+  <a class="{% if tab == 'sales' %}active{% endif %}" href="?tab=sales">Продажи</a>
+</nav>
+
+{% if orders %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>№</th><th>Объявление</th><th>Сумма</th>
+          <th>{% if tab == 'sales' %}Покупатель{% else %}Продавец{% endif %}</th>
+          <th>Статус</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in orders %}
+          <tr>
+            <td class="muted">{{ order.pk }}</td>
+            <td>
+              {% if order.ad and order.status == 'reserved' %}
+                <a href="{{ order.ad.get_absolute_url }}">{{ order.ad_title }}</a>
+              {% else %}{{ order.ad_title }}{% endif %}
+              <div class="muted small">{{ order.created_at|date:"j E Y, H:i" }}</div>
+            </td>
+            <td class="nowrap">{{ order.amount|floatformat:"-2g" }} ₽</td>
+            <td>{% if tab == 'sales' %}{{ order.buyer.username }}{% else %}{{ order.seller.username }}{% endif %}</td>
+            <td>
+              {% if order.status == 'reserved' %}
+                <span class="tag tag-warn">Забронирован</span>
+                <div class="muted small">до {{ order.expires_at|date:"j E, H:i" }}</div>
+              {% elif order.status == 'completed' %}
+                <span class="tag tag-ok">Завершён</span>
+              {% else %}
+                <span class="tag">{{ order.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="nowrap">
+              {% if order.status == 'reserved' %}
+                <div class="row-actions">
+                  {% if tab == 'purchases' %}
+                    <form method="post" action="{% url 'wallet:complete' order.pk %}"
+                          onsubmit="return confirm('Подтвердить получение? Деньги уйдут продавцу.');">
+                      {% csrf_token %}
+                      <button class="btn btn-primary btn-sm" type="submit">Получил</button>
+                    </form>
+                  {% endif %}
+                  <form method="post" action="{% url 'wallet:cancel' order.pk %}"
+                        onsubmit="return confirm('Отменить бронь? Деньги вернутся покупателю.');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm" type="submit">Отменить</button>
+                  </form>
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "ads/_pagination.html" %}
+{% else %}
+  <div class="empty">
+    {% if tab == 'sales' %}
+      <p>Ваши объявления пока никто не бронировал.</p>
+    {% else %}
+      <p>Вы пока ничего не бронировали.</p>
+      <a class="btn btn-primary" href="{% url 'ads:list' %}">Смотреть объявления</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

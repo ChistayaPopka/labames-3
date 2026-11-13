@@ -25,7 +25,9 @@
             <td class="nowrap">{{ ad.price|floatformat:"0g" }} ₽</td>
             <td>{{ ad.views }}</td>
             <td>
-              {% if ad.is_active %}<span class="tag tag-ok">Активно</span>
+              {% if ad.is_reserved %}<span class="tag tag-warn">Забронировано</span>
+              {% elif ad.is_sold and not ad.is_active %}<span class="tag">Продано</span>
+              {% elif ad.is_active %}<span class="tag tag-ok">Активно</span>
               {% else %}<span class="tag">Снято</span>{% endif %}
             </td>
             <td class="nowrap">

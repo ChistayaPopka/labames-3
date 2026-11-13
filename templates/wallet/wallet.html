@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load l10n %}
+
+{% block title %}Кошелёк{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Кошелёк</h1>
+  <a href="{% url 'wallet:orders' %}">Мои заказы →</a>
+</div>
+
+<div class="wallet-summary">
+  <div class="panel stat">
+    <div class="stat-label">Доступно</div>
+    <div class="stat-value">{{ wallet.balance|floatformat:"-2g" }} ₽</div>
+  </div>
+  <div class="panel stat">
+    <div class="stat-label">Заморожено в бронях</div>
+    <div class="stat-value">{{ wallet.held|floatformat:"-2g" }} ₽</div>
+  </div>
+  <div class="panel topup" id="topup">
+    <div class="stat-label">Пополнить баланс</div>
+    <form class="topup-custom" method="post" action="{% url 'wallet:topup' %}">
+      {% csrf_token %}
+      <input type="number" name="amount" min="1" max="{{ topup_max|unlocalize }}" step="0.01" required
+             inputmode="decimal" placeholder="Сумма, ₽" value="{{ prefill_amount|unlocalize }}"
+             aria-label="Сумма пополнения, ₽" {% if prefill_amount %}autofocus{% endif %}>
+      <button class="btn btn-primary" type="submit">Пополнить</button>
+    </form>
+    <form class="topup-quick" method="post" action="{% url 'wallet:topup' %}">
+      {% csrf_token %}
+      {% for amount in quick_amounts %}
+        <button class="btn btn-sm" type="submit" name="amount" value="{{ amount }}">+{{ amount|floatformat:"0g" }}</button>
+      {% endfor %}
+    </form>
+    <div class="muted small">До {{ topup_max|floatformat:"0g" }} ₽ за раз</div>
+  </div>
+</div>
+
+<h2>История операций</h2>
+{% if transactions %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Дата</th><th>Операция</th><th>Доступно</th><th>Заморожено</th></tr>
+      </thead>
+      <tbody>
+        {% for t in transactions %}
+          <tr>
+            <td class="nowrap">{{ t.created_at|date:"j E Y, H:i" }}</td>
+            <td>
+              {{ t.get_kind_display }}
+              {% if t.order %}<span class="muted">· заказ №{{ t.order.pk }} «{{ t.order.ad_title }}»</span>{% endif %}
+              {% if t.comment %}<span class="muted">· {{ t.comment }}</span>{% endif %}
+            </td>
+            <td class="nowrap {% if t.balance_delta > 0 %}plus{% elif t.balance_delta < 0 %}minus{% endif %}">
+              {% if t.balance_delta %}{% if t.balance_delta > 0 %}+{% endif %}{{ t.balance_delta|floatformat:"-2g" }} ₽{% else %}—{% endif %}
+            </td>
+            <td class="nowrap muted">
+              {% if t.held_delta %}{% if t.held_delta > 0 %}+{% endif %}{{ t.held_delta|floatformat:"-2g" }} ₽{% else %}—{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "ads/_pagination.html" %}
+{% else %}
+  <div class="empty"><p>Операций пока нет. Пополните баланс, чтобы бронировать товары.</p></div>
+{% endif %}
+{% endblock %}

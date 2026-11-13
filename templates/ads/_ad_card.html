@@ -1,4 +1,4 @@
-<article class="card">
+<article class="card{% if ad.is_reserved %} card-reserved{% endif %}">
   <a class="card-image" href="{{ ad.get_absolute_url }}">
     {% if ad.image %}
       <img src="{{ ad.image.url }}" alt="{{ ad.title }}" loading="lazy">
@@ -11,7 +11,11 @@
     <div class="price">{{ ad.price|floatformat:"0g" }} ₽</div>
     <div class="meta">{{ ad.city }} · {{ ad.created_at|date:"j E" }}</div>
     <div class="card-footer">
-      <span class="tag">{{ ad.get_condition_display }}</span>
+      {% if ad.is_reserved %}
+        <span class="tag tag-warn">Забронировано</span>
+      {% else %}
+        <span class="tag">{{ ad.get_condition_display }}</span>
+      {% endif %}
       {% if user.is_authenticated and ad.author_id != user.id %}
         <form method="post" action="{% url 'ads:favorite' ad.pk %}">
           {% csrf_token %}

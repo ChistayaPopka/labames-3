@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Сообщения{% endblock %}
+
+{% block content %}
+<div class="page-head">
+  <h1>Сообщения</h1>
+</div>
+
+{% if filter_ad %}
+  <div class="alert">
+    Диалоги по объявлению «<a href="{{ filter_ad.get_absolute_url }}">{{ filter_ad.title }}</a>».
+    <a href="{% url 'chat:inbox' %}">Показать все</a>
+  </div>
+{% endif %}
+
+{% now "Ymd" as today %}
+{% if conversations %}
+  <div class="chat-list">
+    {% for conv in conversations %}
+      <a class="chat-row{% if conv.unread %} chat-row-unread{% endif %}" href="{{ conv.get_absolute_url }}">
+        <div class="chat-ad-thumb">
+          {% if conv.ad and conv.ad.image %}<img src="{{ conv.ad.image.url }}" alt="">{% else %}<span>Нет фото</span>{% endif %}
+        </div>
+        <div class="chat-row-body">
+          <div class="chat-row-top">
+            <span class="chat-companion">{{ conv.companion.username }}</span>
+            <span class="muted small">· {{ conv.role }}</span>
+          </div>
+          <div class="chat-row-ad">{{ conv.ad_title }}{% if not conv.ad %} <span class="tag">удалено</span>{% endif %}</div>
+          <div class="chat-row-preview">
+            {% if conv.last_sender_id == user.id %}<span class="muted">Вы:</span> {% endif %}{{ conv.last_text|truncatechars:90 }}
+          </div>
+        </div>
+        <div class="chat-row-side">
+          <span class="muted small nowrap">
+            {% if conv.updated_at|date:"Ymd" == today %}{{ conv.updated_at|date:"H:i" }}{% else %}{{ conv.updated_at|date:"j E" }}{% endif %}
+          </span>
+          {% if conv.unread %}
+            <span class="badge">{{ conv.unread }}</span>
+          {% elif conv.last_sender_id == user.id %}
+            <span class="msg-status{% if conv.last_is_read %} msg-read{% endif %}">{% if conv.last_is_read %}✓✓{% else %}✓{% endif %}</span>
+          {% endif %}
+        </div>
+      </a>
+    {% endfor %}
+  </div>
+  {% include "ads/_pagination.html" %}
+{% else %}
+  <div class="empty">
+    <p>Здесь будут ваши переписки с продавцами и покупателями.</p>
+    <p>Чтобы написать продавцу, откройте объявление и нажмите «Написать продавцу».</p>
+    <a class="btn btn-primary" href="{% url 'ads:list' %}">Смотреть объявления</a>
+  </div>
+{% endif %}
+{% endblock %}

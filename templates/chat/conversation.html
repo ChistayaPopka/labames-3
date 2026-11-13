@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Переписка с {{ companion.username }}{% endblock %}
+
+{% block content %}
+<p class="breadcrumbs"><a href="{% url 'chat:inbox' %}">← Все сообщения</a></p>
+
+<div class="chat">
+  <div class="chat-head">
+    <div class="chat-ad-thumb">
+      {% if ad and ad.image %}<img src="{{ ad.image.url }}" alt="">{% else %}<span>Нет фото</span>{% endif %}
+    </div>
+    <div class="chat-head-info">
+      <div class="chat-companion">
+        {{ companion.username }}
+        <span class="muted small">
+          {% if conversation and conversation.seller_id == user.id %}· покупатель{% else %}· продавец{% endif %}
+        </span>
+      </div>
+      {% if ad and ad.is_active or ad and ad.author_id == user.id %}
+        <a class="chat-ad-title" href="{{ ad.get_absolute_url }}">{{ ad.title }}</a>
+        <span class="muted small nowrap">· {{ ad.price|floatformat:"0g" }} ₽</span>
+      {% elif ad %}
+        <span class="chat-ad-title">{{ ad.title }}</span> <span class="tag">Снято с публикации</span>
+      {% else %}
+        <span class="chat-ad-title">{{ conversation.ad_title }}</span> <span class="tag">Объявление удалено</span>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="chat-log" id="chat-log"
+       {% if conversation %}data-updates-url="{% url 'chat:updates' conversation.pk %}"{% endif %}
+       data-last-id="{{ last_id }}">
+    {% if chat_messages %}
+      {% include "chat/_messages.html" %}
+    {% else %}
+      <div class="chat-empty" id="chat-empty">
+        <p>Напишите продавцу первым — например, уточните, актуально ли объявление.</p>
+        <div class="chat-quick">
+          <button type="button" class="btn btn-sm" data-quick="Здравствуйте! Ещё продаёте?">Ещё продаёте?</button>
+          <button type="button" class="btn btn-sm" data-quick="Здравствуйте! Торг уместен?">Торг уместен?</button>
+          <button type="button" class="btn btn-sm" data-quick="Здравствуйте! Когда можно посмотреть?">Когда можно посмотреть?</button>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <form class="chat-form" id="chat-form" method="post"
+        action="{% if conversation %}{% url 'chat:detail' conversation.pk %}{% else %}{% url 'chat:start' ad.pk %}{% endif %}">
+    {% csrf_token %}
+    <div class="chat-input">
+      {{ form.text }}
+      <button class="btn btn-primary" type="submit">Отправить</button>
+    </div>
+    <div class="error" id="chat-error"{% if not form.text.errors %} hidden{% endif %}>{{ form.text.errors|join:" " }}</div>
+    <div class="muted small">Enter — отправить, Shift+Enter — новая строка.</div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var log = document.getElementById('chat-log');
+  var form = document.getElementById('chat-form');
+  var textarea = form.querySelector('textarea');
+  var button = form.querySelector('button[type=submit]');
+  var errorBox = document.getElementById('chat-error');
+
+  function scrollDown() { log.scrollTop = log.scrollHeight; }
+  scrollDown();
+
+  document.querySelectorAll('[data-quick]').forEach(function (b) {
+    b.addEventListener('click', function () { textarea.value = b.dataset.quick; textarea.focus(); });
+  });
+
+  textarea.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      if (textarea.value.trim()) form.requestSubmit();
+    }
+  });
+
+  var updatesUrl = log.dataset.updatesUrl;
+  if (!updatesUrl) return;  // диалога ещё нет — первое сообщение уходит обычной отправкой формы
+
+  var lastId = Number(log.dataset.lastId) || 0;
+
+  function showError(text) {
+    errorBox.textContent = text || '';
+    errorBox.hidden = !text;
+  }
+
+  function apply(data, forceScroll) {
+    var nearBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+    var tpl = document.createElement('template');
+    tpl.innerHTML = data.html;
+    var added = false;
+    tpl.content.querySelectorAll('.msg').forEach(function (el) {
+      if (!log.querySelector('.msg[data-id="' + el.dataset.id + '"]')) {
+        log.appendChild(el);
+        added = true;
+      }
+    });
+    if (added) {
+      var empty = document.getElementById('chat-empty');
+      if (empty) empty.remove();
+      if (nearBottom || forceScroll) scrollDown();
+    }
+    lastId = Math.max(lastId, data.last_id);
+    log.querySelectorAll('.msg-out .msg-status:not(.msg-read)').forEach(function (s) {
+      if (Number(s.closest('.msg').dataset.id) <= data.read_upto) {
+        s.classList.add('msg-read');
+        s.textContent = '✓✓';
+        s.title = 'Прочитано';
+      }
+    });
+    var badge = document.getElementById('header-unread');
+    if (badge) { badge.textContent = data.unread_total; badge.hidden = !data.unread_total; }
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (!textarea.value.trim()) return;
+    var body = new FormData(form);
+    body.append('after', lastId);
+    button.disabled = true;
+    fetch(form.action, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+      .then(function (res) {
+        if (!res.ok) { showError(res.data.error); return; }
+        showError('');
+        textarea.value = '';
+        apply(res.data, true);
+      })
+      .catch(function () { showError('Не удалось отправить сообщение. Проверьте соединение.'); })
+      .finally(function () { button.disabled = false; textarea.focus(); });
+  });
+
+  function poll() {
+    if (document.hidden) return schedule();
+    fetch(updatesUrl + '?after=' + lastId, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) { if (data) apply(data, false); })
+      .catch(function () {})
+      .finally(schedule);
+  }
+  var timer;
+  function schedule() { clearTimeout(timer); timer = setTimeout(poll, 4000); }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+  schedule();
+})();
+</script>
+{% endblock %}

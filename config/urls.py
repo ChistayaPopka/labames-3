@@ -13,6 +13,8 @@ urlpatterns = [
     # Свой LoginView стоит раньше стандартного из django.contrib.auth.urls
     path('accounts/login/', accounts_views.LoginView.as_view(), name='login'),
     path('accounts/', include('django.contrib.auth.urls')),
+    path('', include('wallet.urls')),
+    path('', include('chat.urls')),
     path('', include('ads.urls')),
 ]
 

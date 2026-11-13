@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'ads.apps.AdsConfig',
     'accounts.apps.AccountsConfig',
+    'wallet.apps.WalletConfig',
+    'chat.apps.ChatConfig',
 ]
 
 MIDDLEWARE = [
@@ -73,6 +75,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'wallet.context_processors.wallet',
+                'chat.context_processors.chat',
             ],
         },
     },
@@ -139,6 +143,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'ads:list'
 LOGOUT_REDIRECT_URL = 'ads:list'
+
+# Тестовый баланс (деньги ненастоящие)
+WALLET_RESERVATION_HOURS = 48       # сколько держится бронь, потом деньги возвращаются
+WALLET_TOPUP_MAX = 100_000          # максимум одного тестового пополнения, ₽
+WALLET_BALANCE_MAX = 1_000_000      # потолок доступного баланса, ₽
 
 # Почта (коды подтверждения).
 # Если задана переменная окружения EMAIL_HOST — письма уходят через SMTP,

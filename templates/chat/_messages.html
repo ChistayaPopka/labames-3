@@ -1,0 +1,20 @@
+{% for m in chat_messages %}
+  {% if m.sender_id == user.id %}
+    <div class="msg msg-out" data-id="{{ m.pk }}">
+      <div class="msg-text">{{ m.text|linebreaksbr }}</div>
+      <div class="msg-meta">
+        {{ m.created_at|date:"j E, H:i" }}
+        {% if m.pk <= read_upto %}
+          <span class="msg-status msg-read" title="Прочитано">✓✓</span>
+        {% else %}
+          <span class="msg-status" title="Доставлено">✓</span>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    <div class="msg msg-in" data-id="{{ m.pk }}">
+      <div class="msg-text">{{ m.text|linebreaksbr }}</div>
+      <div class="msg-meta">{{ m.created_at|date:"j E, H:i" }}</div>
+    </div>
+  {% endif %}
+{% endfor %}
