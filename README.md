@@ -16,7 +16,7 @@
 
 ## Запуск
 
-Нужен Python 3.12 или новее.
+Нужен Python 3.12 или версия новее.
 
 ```powershell
 python -m venv .venv
